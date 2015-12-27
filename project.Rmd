@@ -1,0 +1,91 @@
+---
+title: "Project for Machine Learning"
+output: html_document
+---
+
+##Data preparation
+Reading in the csv file gives weird results with escaped quotes. Hence, separator is changed from comma to semi colon before reading in the file.   
+
+Variable types are looked at. Relevant type conversion is done. 7 variables are removed as they are irrelevant for the prediction: for example, name, time, window etc. Data is partitioned into 60% training and 40% testing.  
+
+```{r setup, cache = F, echo = F, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7}
+library(caret)
+#data preprocessed with ';' as separator rather than ',' as separator
+data<-read.csv('pml-training.csv', stringsAsFactors=F, sep=';', header=T, quote="")
+#variable types
+intVariables<-which(sapply(data, class)=='integer') #35
+numVariables<-which(sapply(data, class)=='numeric') #87
+charVariables<-which(sapply(data, class)=='character') #38
+#type conversion, removal of unnecessary variables
+charToNum<-charVariables[c(-1,-2,-3, -38)]
+data[,charToNum]<-as.data.frame(sapply(data[,charToNum], as.numeric))
+charToFac<-charVariables[38]
+data[,charToFac]<-as.data.frame(sapply(data[,charToFac], as.factor))
+data<-data[,-c(intVariables[c(1,2,3,4)], charVariables[c(1,2,3)])]
+
+set.seed(99)
+inTrain<-createDataPartition(y=data$classe, p=0.60, list=F)
+training<-data[inTrain,]
+testing<-data[-inTrain,]
+```
+
+Afterwards training set is manipulated. 30 variables are removed as they have zero variance. 70 variables are removed as more than 90% of the observations for these variables are NA. 53 variables are left with 52 of them being numeric/integer and the dependent variable *Classe* as factor variable.  
+
+```{r}
+nsv <- nearZeroVar(training[, -153],saveMetrics=TRUE)
+training<-training[,-which(nsv$nzv==T)]
+
+naDetect<-function(x) length(which(is.na(x)))
+naStat<-which(sapply(training, naDetect)>10000)
+training<-training[, -naStat]
+```
+
+Preprocessing is done through knnImpute, standardization and PCA. With PCA 80% of variance is set as the threshold.  
+```{r, cache = F, echo = T, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7}
+#imputation
+preObj<-preProcess(training[,-53], method='knnImpute')
+training[,-53]<-predict(preObj, training[,-53])
+#standardize
+preObj1 <- preProcess(training[,-53],method=c("center","scale"))
+training[,-53]<-predict(preObj1, training[,-53])
+#PCA
+preObj2 <- preProcess(training[,-53],method="pca",thresh=0.80)
+training[,-53]<-predict(preObj2, training[,-53])
+```
+
+##Model Selection, Testing and Error estimate
+4 different models are trained on the data. Unfortunately, random forest takes too much resources and time and hence has not been included.  
+`treeFit<-train(classe~., method='rpart', data=training)`  
+*Bag* in the *caret* pacakge has the in built cross validation.  
+```{r, cache = F, echo = T, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7} 
+treebag <- bag(training[,-53], training$classe, B = 10, bagControl = bagControl(fit = ctreeBag$fit, predict = ctreeBag$pred, aggregate = ctreeBag$aggregate))
+```
+`modelLDA<-train(classe~., method='lda', data=training)`  
+`multinom<-train(classe~., method='multinom', data=training)`  
+
+Test set is prepared and preprocessed in the same way as the training set. Test is further split to have 20% for model calibration and 20% for error estimate. The 4 models are calibrated against the test data. The one with highest accuracy is chosen which in this case is decision tree with bagging.  
+
+```{r, cache = F, echo = F, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7}
+testing<-testing[,colnames(training)]
+testing[,-53]<-as.data.frame(sapply(testing[,-53], as.numeric))
+testing[,53]<-as.data.frame(sapply(testing[,53], as.factor))
+
+testing[,-53]<-predict(preObj, testing[,-53]); testing[,-53]<-predict(preObj1, testing[,-53])
+testing[,-53]<-predict(preObj2, testing[,-53])
+```
+
+```{r, cache = F, echo = T, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7} 
+inTest<-createDataPartition(y=testing$classe, p=0.50, list=F)
+validation<-testing[-inTest,]
+testing<-testing[inTest,]
+```
+
+`c1<-confusionMatrix(testing$classe,predict(treeFit,testing))`  
+`c2<-confusionMatrix(testing$classe,predict(treebag,testing))`  
+`c3<-confusionMatrix(testing$classe,predict(modelLDA,testing))`  
+`c4<-confusionMatrix(testing$classe,predict(multinom,testing))`  
+
+This model is then applied on the validation data (touched only once) for the estimate of the error.  
+```{r}
+confusionMatrix(validation$classe,predict(treebag,validation))
+```

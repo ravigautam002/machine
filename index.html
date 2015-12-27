@@ -58,7 +58,7 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 <div id="data-preparation" class="section level2">
 <h2>Data preparation</h2>
 <p>Reading in the csv file gives weird results with escaped quotes. Hence, separator is changed from comma to semi colon before reading in the file.</p>
-<p>Variable types were looked at. Relevant type conversion was done. Data was filtered for non relevance of variables like name, time, window etc.<br />Data is partitioned into 60% training and 40% testing.</p>
+<p>Variable types are looked at. Relevant type conversion is done. 7 variables are removed as they are irrelevant for the prediction: for example, name, time, window etc. Data is partitioned into 60% training and 40% testing.</p>
 <p>Afterwards training set is manipulated. 30 variables are removed as they have zero variance. 70 variables are removed as more than 90% of the observations for these variables are NA. 53 variables are left with 52 of them being numeric/integer and the dependent variable <em>Classe</em> as factor variable.</p>
 <pre class="r"><code>nsv &lt;- nearZeroVar(training[, -153],saveMetrics=TRUE)
 training&lt;-training[,-which(nsv$nzv==T)]
@@ -77,14 +77,11 @@ training[,-53]&lt;-predict(preObj1, training[,-53])
 preObj2 &lt;- preProcess(training[,-53],method=&quot;pca&quot;,thresh=0.80)
 training[,-53]&lt;-predict(preObj2, training[,-53])</code></pre>
 </div>
-<div id="model-selection" class="section level2">
-<h2>Model Selection</h2>
-<p>4 different models are trained on the data. Unfortunately, random forest takes too much resources and time and hence has not been included.<br /><code>treeFit&lt;-train(classe~., method='rpart', data=training)</code></p>
+<div id="model-selection-testing-and-error-estimate" class="section level2">
+<h2>Model Selection, Testing and Error estimate</h2>
+<p>4 different models are trained on the data. Unfortunately, random forest takes too much resources and time and hence has not been included.<br /><code>treeFit&lt;-train(classe~., method='rpart', data=training)</code><br /><em>Bag</em> in the <em>caret</em> pacakge has the in built cross validation.</p>
 <pre class="r"><code>treebag &lt;- bag(training[,-53], training$classe, B = 10, bagControl = bagControl(fit = ctreeBag$fit, predict = ctreeBag$pred, aggregate = ctreeBag$aggregate))</code></pre>
 <p><code>modelLDA&lt;-train(classe~., method='lda', data=training)</code><br /><code>multinom&lt;-train(classe~., method='multinom', data=training)</code></p>
-</div>
-<div id="test-and-error-estimate" class="section level2">
-<h2>Test and error estimate</h2>
 <p>Test set is prepared and preprocessed in the same way as the training set. Test is further split to have 20% for model calibration and 20% for error estimate. The 4 models are calibrated against the test data. The one with highest accuracy is chosen which in this case is decision tree with bagging.</p>
 <pre class="r"><code>inTest&lt;-createDataPartition(y=testing$classe, p=0.50, list=F)
 validation&lt;-testing[-inTest,]
