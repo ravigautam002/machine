@@ -66,23 +66,20 @@ training&lt;-training[,-which(nsv$nzv==T)]
 naDetect&lt;-function(x) length(which(is.na(x)))
 naStat&lt;-which(sapply(training, naDetect)&gt;10000)
 training&lt;-training[, -naStat]</code></pre>
-<p>Preprocessing is done through knnImpute, standardization and PCA. With PCA 80% of variance is set as the threshold.</p>
+<p>Preprocessing is done through knnImpute and standardization.</p>
 <pre class="r"><code>#imputation
 preObj&lt;-preProcess(training[,-53], method='knnImpute')
 training[,-53]&lt;-predict(preObj, training[,-53])
 #standardize
 preObj1 &lt;- preProcess(training[,-53],method=c(&quot;center&quot;,&quot;scale&quot;))
-training[,-53]&lt;-predict(preObj1, training[,-53])
-#PCA
-preObj2 &lt;- preProcess(training[,-53],method=&quot;pca&quot;,thresh=0.80)
-training[,-53]&lt;-predict(preObj2, training[,-53])</code></pre>
+training[,-53]&lt;-predict(preObj1, training[,-53])</code></pre>
 </div>
 <div id="model-selection-testing-and-error-estimate" class="section level2">
 <h2>Model Selection, Testing and Error estimate</h2>
 <p>4 different models are trained on the data. Unfortunately, random forest takes too much resources and time and hence has not been included.<br /><code>treeFit&lt;-train(classe~., method='rpart', data=training)</code><br /><em>Bag</em> in the <em>caret</em> pacakge has the in built cross validation.</p>
 <pre class="r"><code>treebag &lt;- bag(training[,-53], training$classe, B = 10, bagControl = bagControl(fit = ctreeBag$fit, predict = ctreeBag$pred, aggregate = ctreeBag$aggregate))</code></pre>
 <p><code>modelLDA&lt;-train(classe~., method='lda', data=training)</code><br /><code>multinom&lt;-train(classe~., method='multinom', data=training)</code></p>
-<p>Test set is prepared and preprocessed in the same way as the training set. Test is further split to have 20% for model calibration and 20% for error estimate. The 4 models are calibrated against the test data. The one with highest accuracy is chosen which in this case is decision tree with bagging.</p>
+<p>Test set is prepared and preprocessed in the same way as the training set. Test is further split to have 20% for model calibration and 20% for error estimate. The 4 models are calibrated against the test data. The one with highest accuracy(95%) is chosen which in this case is decision tree with bagging.</p>
 <pre class="r"><code>inTest&lt;-createDataPartition(y=testing$classe, p=0.50, list=F)
 validation&lt;-testing[-inTest,]
 testing&lt;-testing[inTest,]</code></pre>
@@ -93,33 +90,33 @@ testing&lt;-testing[inTest,]</code></pre>
 ## 
 ##           Reference
 ## Prediction    A    B    C    D    E
-##          A 1020   35   28   20   13
-##          B   46  631   45   20   17
-##          C   44   44  556   21   19
-##          D   21   23   51  524   24
-##          E   21   52   39   27  582
+##          A 1096   10    6    2    2
+##          B   27  713   10    2    7
+##          C    0   24  647   11    2
+##          D    2    3   23  611    4
+##          E    3    5    5    6  702
 ## 
 ## Overall Statistics
 ##                                           
-##                Accuracy : 0.8445          
-##                  95% CI : (0.8328, 0.8557)
-##     No Information Rate : 0.2937          
+##                Accuracy : 0.9607          
+##                  95% CI : (0.9542, 0.9666)
+##     No Information Rate : 0.2875          
 ##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
 ##                                           
-##                   Kappa : 0.8031          
-##  Mcnemar's Test P-Value : 2.672e-06       
+##                   Kappa : 0.9503          
+##  Mcnemar's Test P-Value : 0.003443        
 ## 
 ## Statistics by Class:
 ## 
 ##                      Class: A Class: B Class: C Class: D Class: E
-## Sensitivity            0.8854   0.8038   0.7733   0.8562   0.8885
-## Specificity            0.9654   0.9592   0.9600   0.9641   0.9575
-## Pos Pred Value         0.9140   0.8314   0.8129   0.8149   0.8072
-## Neg Pred Value         0.9530   0.9513   0.9497   0.9732   0.9772
-## Prevalence             0.2937   0.2001   0.1833   0.1560   0.1670
-## Detection Rate         0.2600   0.1608   0.1417   0.1336   0.1484
+## Sensitivity            0.9716   0.9444   0.9363   0.9668   0.9791
+## Specificity            0.9928   0.9855   0.9886   0.9903   0.9941
+## Pos Pred Value         0.9821   0.9394   0.9459   0.9502   0.9736
+## Neg Pred Value         0.9886   0.9867   0.9864   0.9936   0.9953
+## Prevalence             0.2875   0.1925   0.1761   0.1611   0.1828
+## Detection Rate         0.2794   0.1817   0.1649   0.1557   0.1789
 ## Detection Prevalence   0.2845   0.1935   0.1744   0.1639   0.1838
-## Balanced Accuracy      0.9254   0.8815   0.8667   0.9101   0.9230</code></pre>
+## Balanced Accuracy      0.9822   0.9649   0.9624   0.9785   0.9866</code></pre>
 </div>
 
 

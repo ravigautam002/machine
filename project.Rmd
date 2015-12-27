@@ -40,7 +40,8 @@ naStat<-which(sapply(training, naDetect)>10000)
 training<-training[, -naStat]
 ```
 
-Preprocessing is done through knnImpute, standardization and PCA. With PCA 80% of variance is set as the threshold.  
+Preprocessing is done through knnImpute and standardization.  
+
 ```{r, cache = F, echo = T, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7}
 #imputation
 preObj<-preProcess(training[,-53], method='knnImpute')
@@ -48,9 +49,6 @@ training[,-53]<-predict(preObj, training[,-53])
 #standardize
 preObj1 <- preProcess(training[,-53],method=c("center","scale"))
 training[,-53]<-predict(preObj1, training[,-53])
-#PCA
-preObj2 <- preProcess(training[,-53],method="pca",thresh=0.80)
-training[,-53]<-predict(preObj2, training[,-53])
 ```
 
 ##Model Selection, Testing and Error estimate
@@ -63,7 +61,7 @@ treebag <- bag(training[,-53], training$classe, B = 10, bagControl = bagControl(
 `modelLDA<-train(classe~., method='lda', data=training)`  
 `multinom<-train(classe~., method='multinom', data=training)`  
 
-Test set is prepared and preprocessed in the same way as the training set. Test is further split to have 20% for model calibration and 20% for error estimate. The 4 models are calibrated against the test data. The one with highest accuracy is chosen which in this case is decision tree with bagging.  
+Test set is prepared and preprocessed in the same way as the training set. Test is further split to have 20% for model calibration and 20% for error estimate. The 4 models are calibrated against the test data. The one with highest accuracy(95%) is chosen which in this case is decision tree with bagging.  
 
 ```{r, cache = F, echo = F, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7}
 testing<-testing[,colnames(training)]
@@ -71,7 +69,6 @@ testing[,-53]<-as.data.frame(sapply(testing[,-53], as.numeric))
 testing[,53]<-as.data.frame(sapply(testing[,53], as.factor))
 
 testing[,-53]<-predict(preObj, testing[,-53]); testing[,-53]<-predict(preObj1, testing[,-53])
-testing[,-53]<-predict(preObj2, testing[,-53])
 ```
 
 ```{r, cache = F, echo = T, message = F, warning = F, tidy = F, results='hide', fig.height=7, fig.width=7} 
